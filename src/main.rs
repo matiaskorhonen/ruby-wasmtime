@@ -1,64 +1,30 @@
-//! Small example of how to instantiate a wasm module that imports one function,
-//! showing how you can fill in host functionality for a wasm module.
-
-// You can execute this example with `cargo run --example hello`
-
 use anyhow::Result;
 use wasmtime::*;
-
-struct MyState {
-    name: String,
-    count: usize,
-}
+use wasmtime_wasi::sync::WasiCtxBuilder;
 
 fn main() -> Result<()> {
-    // First the wasm module needs to be compiled. This is done with a global
-    // "compilation environment" within an `Engine`. Note that engines can be
-    // further configured through `Config` if desired instead of using the
-    // default like this is here.
-    println!("Compiling module...");
+    // Define the WASI functions globally on the `Config`.
     let engine = Engine::default();
-    let module = Module::new(&engine, include_bytes!("hello.wat"))?;
+    let mut linker = Linker::new(&engine);
+    wasmtime_wasi::add_to_linker(&mut linker, |s| s)?;
 
-    // After a module is compiled we create a `Store` which will contain
-    // instantiated modules and other items like host functions. A Store
-    // contains an arbitrary piece of host information, and we use `MyState`
-    // here.
-    println!("Initializing...");
-    let mut store = Store::new(
-        &engine,
-        MyState {
-            name: "hello, world!".to_string(),
-            count: 0,
-        },
-    );
+    // Create a WASI context and put it in a Store; all instances in the store
+    // share this context. `WasiCtxBuilder` provides a number of ways to
+    // configure what the target program will have access to.
+    let wasi = WasiCtxBuilder::new()
+        .env("RUBY_FIBER_MACHINE_STACK_SIZE", "16777216")?
+        .inherit_stdio()
+        .inherit_args()?
+        .build();
+    let mut store = Store::new(&engine, wasi);
 
-    // Our wasm module we'll be instantiating requires one imported function.
-    // the function takes no parameters and returns no results. We create a host
-    // implementation of that function here, and the `caller` parameter here is
-    // used to get access to our original `MyState` value.
-    println!("Creating callback...");
-    let hello_func = Func::wrap(&mut store, |mut caller: Caller<'_, MyState>| {
-        println!("Calling back...");
-        println!("> {}", caller.data().name);
-        caller.data_mut().count += 1;
-    });
+    // Instantiate our module with the imports we've created, and run it.
+    let module = Module::new(&engine, include_bytes!("ruby-vfs.wasm"))?;
+    linker.module(&mut store, "", &module)?;
+    linker
+        .get_default(&mut store, "")?
+        .typed::<(), ()>(&store)?
+        .call(&mut store, ())?;
 
-    // Once we've got that all set up we can then move to the instantiation
-    // phase, pairing together a compiled module as well as a set of imports.
-    // Note that this is where the wasm `start` function, if any, would run.
-    println!("Instantiating module...");
-    let imports = [hello_func.into()];
-    let instance = Instance::new(&mut store, &module, &imports)?;
-
-    // Next we poke around a bit to extract the `run` function from the module.
-    println!("Extracting export...");
-    let run = instance.get_typed_func::<(), ()>(&mut store, "run")?;
-
-    // And last but not least we can call it!
-    println!("Calling export...");
-    run.call(&mut store, ())?;
-
-    println!("Done.");
     Ok(())
 }
