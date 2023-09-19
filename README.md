@@ -4,7 +4,7 @@ Proof of concept for [Wasmtime]() × [ruby.wasm]() integration.
 
 ## Notes
 
-## `my-ruby-app.wasm`
+### `my-ruby-app.wasm`
 
 Produced using `wasi-vfs` using these instructions ([cribbed from the ruby.wasm repo](https://github.com/ruby/ruby.wasm#quick-example-how-to-package-your-ruby-application-as-a-wasi-application)):
 
@@ -24,7 +24,7 @@ $ echo "puts 'Hello'" > src/my_app.rb
 $ wasi-vfs pack ruby.wasm --mapdir /src::./src --mapdir /usr::./3_2-wasm32-unknown-wasi-full/usr -o my-ruby-app.wasm
 ```
 
-## Run the embedded Ruby script
+### Run the embedded Ruby script
 
 ```sh
 cargo run -r
