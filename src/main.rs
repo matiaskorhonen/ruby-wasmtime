@@ -14,12 +14,12 @@ fn main() -> Result<()> {
     let wasi = WasiCtxBuilder::new()
         .env("RUBY_FIBER_MACHINE_STACK_SIZE", "16777216")?
         .inherit_stdio()
-        .inherit_args()?
+        .args(&[String::from("--"), String::from("/src/my_app.rb")])?
         .build();
     let mut store = Store::new(&engine, wasi);
 
     // Instantiate our module with the imports we've created, and run it.
-    let module = Module::new(&engine, include_bytes!("ruby-vfs.wasm"))?;
+    let module = Module::new(&engine, include_bytes!("my-ruby-app.wasm"))?;
     linker.module(&mut store, "", &module)?;
     linker
         .get_default(&mut store, "")?
