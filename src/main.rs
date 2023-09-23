@@ -14,7 +14,7 @@ fn main() -> Result<()> {
     let wasi = WasiCtxBuilder::new()
         .env("RUBY_FIBER_MACHINE_STACK_SIZE", "16777216")?
         .inherit_stdio()
-        .args(&[String::from("--"), String::from("/src/my_app.rb")])?
+        .args(&[String::from("--"), String::from("/src/fib.rb")])?
         .build();
     let mut store = Store::new(&engine, wasi);
 
